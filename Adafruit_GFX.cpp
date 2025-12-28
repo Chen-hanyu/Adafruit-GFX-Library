@@ -395,17 +395,69 @@ void Adafruit_GFX::drawPentagram(int16_t x0, int16_t y0,
 	drawLine(xd, yd, xe, ye, color);
 }
 
-// Draw a ellipse outline
-void Adafruit_GFX::drawEllipse(int16_t x1, int16_t y1, int16_t x2, int16_t y2, int16_t a, uint16_t color) {
-    int16_t max_x = ((x1 > x2 ? x1 : x2) + a > 128 ? (x1 > x2 ? x1 : x2) + a : 128);
-    int16_t max_y = ((y1 > y2 ? y1 : y2) + a > 64 ? (y1 > y2 ? y1 : y2) + a : 64);
-    for (int16_t x = ((x1 > x2 ? x2 : x1) - a > 0 ? (x1 > x2 ? x2 : x1) - a : 0 ); x <= max_x; x++) {
-        for (int16_t y = ((y1 > y2 ? y2 : y1) - a > 0 ? (y1 > y2 ? y2 : y1) - a : 0); y <= max_y; y++) {
-            int32_t distance = sqrt((x - x1) * (x - x1) + (y - y1) * (y - y1)) + sqrt((x - x2) * (x - x2) + (y - y2) * (y - y2));
-            if (distance-a == a) {
-                writePixel(x, y, color);
-            }
+// Draw an ellipse outline
+void Adafruit_GFX::drawEllipse(int16_t x0, int16_t y0, int16_t rx, int16_t ry,
+                              uint16_t color) {
+    if (rx < 0) rx = -rx;
+    if (ry < 0) ry = -ry;
+
+    if (rx == 0) {
+        drawFastVLine(x0, y0 - ry, 2 * ry + 1, color);
+        return;
+    }
+    if (ry == 0) {
+        drawFastHLine(x0 - rx, y0, 2 * rx + 1, color);
+        return;
+    }
+
+    int32_t xLeft   = (int32_t)x0 - rx;
+    int32_t xRight  = (int32_t)x0 + rx;
+    int32_t yTop    = (int32_t)y0 - ry;
+    int32_t yBottom = (int32_t)y0 + ry;
+
+    // Bresenham-style ellipse algorithm (Alois Zingl, public domain):
+    // https://members.chello.at/easyfilter/bresenham.html
+    int32_t a  = xRight - xLeft;
+    int32_t b  = yBottom - yTop;
+    int32_t b1 = b & 1;
+    int32_t dx = 4 * (1 - a) * b * b;
+    int32_t dy = 4 * (b1 + 1) * a * a;
+    int32_t err = dx + dy + b1 * a * a;
+    int32_t e2;
+    int32_t bOrig = b;
+
+    yTop += (b + 1) / 2;
+    yBottom = yTop - b1;
+    a *= 8 * a;
+    b1 = 8 * b * b;
+
+    startWrite();
+    do {
+        writePixel((int16_t)xRight,  (int16_t)yTop,    color);
+        writePixel((int16_t)xLeft,   (int16_t)yTop,    color);
+        writePixel((int16_t)xLeft,   (int16_t)yBottom, color);
+        writePixel((int16_t)xRight,  (int16_t)yBottom, color);
+
+        e2 = 2 * err;
+        if (e2 <= dy) {
+            yTop++;
+            yBottom--;
+            err += dy += a;
         }
+        if (e2 >= dx || 2 * err > dy) {
+            xLeft++;
+            xRight--;
+            err += dx += b1;
+        }
+    } while (xLeft <= xRight);
+
+    while (yTop - yBottom < bOrig) {
+        writePixel((int16_t)(xLeft - 1),  (int16_t)yTop,    color);
+        writePixel((int16_t)(xRight + 1), (int16_t)yTop,    color);
+        yTop++;
+        writePixel((int16_t)(xLeft - 1),  (int16_t)yBottom, color);
+        writePixel((int16_t)(xRight + 1), (int16_t)yBottom, color);
+        yBottom--;
     }
     endWrite();
 }
@@ -1388,5 +1440,4 @@ void GFXcanvas16::fillScreen(uint16_t color) {
         }
     }
 }
-
 
