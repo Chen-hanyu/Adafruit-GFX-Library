@@ -370,29 +370,35 @@ void Adafruit_GFX::fillRoundRect(int16_t x, int16_t y, int16_t w,
     endWrite();
 }
 
-// Draw a Pentagram
+// Draw a pentagram outline centered at (x0, y0) with an outer radius of r
 void Adafruit_GFX::drawPentagram(int16_t x0, int16_t y0,
-        int16_t r0, uint16_t color) {
-	int xa, ya;
-    int xb, yb;
-    int xc, yc;
-    int xd, yd;
-    int xe, ye;
-    xa = x0;
-    ya = y0 - r0;
-    xb = x0 - r0 * sin(PI / 180 * 72);
-    yb = y0 + r0 * -(cos(PI / 180 * 72));
-    xc = x0 - r0 * -(sin(PI / 180 * 36));
-    yc = y0 - r0 * -(cos(PI / 180 * 36));
-    xd = x0 + r0 * -(sin(PI / 180 * 36));
-    yd = y0 - r0 * -(cos(PI / 180 * 36));
-    xe = x0 + r0 * sin(PI / 180 * 72);
-    ye = y0 + r0 * -(cos(PI / 180 * 72));
-    drawLine(xa, ya, xc, yc, color);
-    drawLine(xa, ya, xd, yd, color);
-    drawLine(xb, yb, xc, yc, color);
-	drawLine(xb, yb, xe, ye, color);
-	drawLine(xd, yd, xe, ye, color);
+        int16_t r, uint16_t color) {
+    if (r <= 0) {
+        return;
+    }
+
+    int16_t x[5];
+    int16_t y[5];
+    const float angleStep  = 2.0f * PI / 5.0f;
+    const float startAngle = -PI / 2.0f; // Start at the top point
+
+    for (uint8_t i = 0; i < 5; ++i) {
+        float angle = startAngle + i * angleStep;
+        float xr = (float)r * cos(angle);
+        float yr = (float)r * sin(angle);
+        x[i] = x0 + (int16_t)((xr >= 0.0f) ? (xr + 0.5f) : (xr - 0.5f));
+        y[i] = y0 + (int16_t)((yr >= 0.0f) ? (yr + 0.5f) : (yr - 0.5f));
+    }
+
+    static const uint8_t order[5] = {0, 2, 4, 1, 3};
+
+    startWrite();
+    for (uint8_t i = 0; i < 5; ++i) {
+        uint8_t from = order[i];
+        uint8_t to   = order[(i + 1) % 5];
+        writeLine(x[from], y[from], x[to], y[to], color);
+    }
+    endWrite();
 }
 
 // Draw an ellipse outline
